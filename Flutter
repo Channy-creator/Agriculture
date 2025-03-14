@@ -1,0 +1,124 @@
+// smart_agriculture_package.dart
+
+library smart_agriculture;
+
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class SmartAgriculture {
+  final String apiUrl; // API endpoint for your agriculture data
+
+  SmartAgriculture({required this.apiUrl});
+
+  // Function to fetch sensor data (e.g., temperature, humidity, moisture)
+  Future<Map<String, dynamic>> fetchSensorData() async {
+    try {
+      final response = await http.get(Uri.parse(apiUrl + '/sensors')); // Example endpoint
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to load sensor data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching sensor data: $e');
+    }
+  }
+
+  // Function to fetch weather forecast
+  Future<Map<String, dynamic>> fetchWeatherForecast() async {
+    try {
+      final response = await http.get(Uri.parse(apiUrl + '/weather')); // Example endpoint
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to load weather forecast: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching weather forecast: $e');
+    }
+  }
+
+  // Function to control irrigation system (e.g., turn on/off)
+  Future<bool> controlIrrigation(bool turnOn) async {
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl + '/irrigation'), // Example endpoint
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'turnOn': turnOn}),
+      );
+
+      if (response.statusCode == 200) {
+        return true; // Assuming successful control
+      } else {
+        throw Exception('Failed to control irrigation: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error controlling irrigation: $e');
+    }
+  }
+
+  // Example widget to display sensor data
+  Widget sensorDataWidget() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: fetchSensorData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        } else {
+          final data = snapshot.data!;
+          return Column(
+            children: [
+              Text('Temperature: ${data['temperature']} °C'),
+              Text('Humidity: ${data['humidity']} %'),
+              Text('Soil Moisture: ${data['moisture']}'),
+              // Add more sensor data displays here
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  // Example widget for irrigation control button
+  Widget irrigationControlWidget() {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        bool irrigationOn = false; // Initial state
+
+        return Column(
+          children: [
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  bool success = await controlIrrigation(!irrigationOn);
+                  if (success) {
+                    setState(() {
+                      irrigationOn = !irrigationOn;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(irrigationOn ? 'Irrigation Turned On' : 'Irrigation Turned Off'),
+                      ),
+                    );
+
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: Text(irrigationOn ? 'Turn Off Irrigation' : 'Turn On Irrigation'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
